@@ -1,6 +1,8 @@
 package com.example.api_gateway.auth.security.config;
 
 import com.example.api_gateway.auth.security.filter.JwtAuthenticationFilter;
+import com.example.api_gateway.ratelimiter.filter.BusinessRateLimiterFilter;
+import com.example.api_gateway.ratelimiter.filter.RateLimitingFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +20,12 @@ public class SecurityConfig {
     @Autowired
     JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @Autowired
+    RateLimitingFilter rateLimitingFilter;
+
+    @Autowired
+    BusinessRateLimiterFilter businessRateLimiterFilter;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -29,7 +37,9 @@ public class SecurityConfig {
                         .requestMatchers("/register", "/login", "/refresh").permitAll()
                         .anyRequest().authenticated()
                 ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(rateLimitingFilter, JwtAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(businessRateLimiterFilter, JwtAuthenticationFilter.class)
                 .build();
     }
 
