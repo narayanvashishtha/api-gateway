@@ -10,12 +10,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RoundRobinStrategy {
 
     private final Map<String, AtomicInteger> counters = new ConcurrentHashMap<>(); ;
-    private final Map<String, List<ServiceInstance>> registry = new ConcurrentHashMap<>();
 
     public ServiceInstance select(String serviceName, List<ServiceInstance> instances){
         if (instances == null || instances.isEmpty()) return null;
         AtomicInteger count = counters.computeIfAbsent(serviceName, k -> new AtomicInteger(0));
-        int index = Math.abs(count.getAndIncrement() % instances.size());
+        int current = count.getAndIncrement();
+        int index = (current & Integer.MAX_VALUE) % instances.size();
+
 
         return instances.get(index);
     }

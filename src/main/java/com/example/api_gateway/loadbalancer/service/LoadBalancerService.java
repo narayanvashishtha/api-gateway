@@ -19,10 +19,10 @@ public class LoadBalancerService {
     }
 
     //Returns null if no instance available.
-    public String getNextUrl(String serviceName) {
+    public ServiceInstance chooseInstance(String serviceName) {
         List<ServiceInstance> instances = registry.getInstances(serviceName);
         if (instances.isEmpty()) return null;
-        ServiceInstance chosen = strategy.select(serviceName, instances);
-        return chosen == null ? null : chosen.getUrl();
+        return strategy.select(serviceName, instances);
     }
+
 }
