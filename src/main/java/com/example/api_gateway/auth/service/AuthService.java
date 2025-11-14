@@ -60,7 +60,7 @@ public class AuthService {
         return decoder;
     }
 
-    public boolean validateRefreshToken(String refreshToken, String secretKey) {
+    public boolean validateRefreshToken(String refreshToken) {
         return jwtTokenProvider.validateToken(refreshToken);
     }
 
