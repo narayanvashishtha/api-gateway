@@ -8,13 +8,14 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.ott.InvalidOneTimeTokenException;
+import org.springframework.stereotype.Component;
 
 
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-
+@Component
 public class JwtTokenProvider {
 
     @Value("${app.jwt.secret}")
