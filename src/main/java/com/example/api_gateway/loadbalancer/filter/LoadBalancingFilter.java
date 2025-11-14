@@ -1,6 +1,11 @@
 package com.example.api_gateway.loadbalancer.filter;
 
+import com.example.api_gateway.loadbalancer.model.ServiceInstance;
 import com.example.api_gateway.loadbalancer.service.LoadBalancerService;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
@@ -10,22 +15,10 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 
-/**
- * Simple synchronous load-balancing forwarder.
- * For demo: forwards requests whose path starts with /proxy/{logical}/... to a backend chosen by LoadBalancerService.
-
- * Note: This is intentionally synchronous and simple so it's easy to reason about and compile.
- * Production: add timeouts, circuit-breaker, streaming bodies, preserve all headers correctly, health checks etc.
- */
 @Component
 @Order(300)
 public class LoadBalancingFilter extends OncePerRequestFilter {
@@ -49,8 +42,8 @@ public class LoadBalancingFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // Example path: /proxy/trade/api/orders
-        String path = request.getRequestURI(); // e.g. /proxy/trade/api/orders
+        // Example: /proxy/trade/api/orders
+        String path = request.getRequestURI();
         String[] parts = path.split("/");
         if (parts.length < 3) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -61,27 +54,34 @@ public class LoadBalancingFilter extends OncePerRequestFilter {
         String logical = parts[2]; // e.g. "trade"
         String serviceName = mapLogicalToServiceName(logical); // e.g. "TRADE_SERVICE"
 
-        String backendBase = loadBalancerService.getNextUrl(serviceName);
-        if (backendBase == null) {
+        // Select backend instance
+        ServiceInstance instance = loadBalancerService.chooseInstance(serviceName);
+        if (instance == null) {
             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             response.getWriter().write("No backend instances available for " + serviceName);
             return;
         }
 
-        // derive the path to forward (strip /proxy/{logical})
+        String backendBase = instance.getUrl();
+
+        // derive path to forward (strip /proxy/{logical})
         String forwardPath = path.substring(("/proxy/" + logical).length());
         if (forwardPath.isEmpty()) forwardPath = "/";
 
-        // Wrap request to safely read body without consuming it for downstream (though we respond directly here)
+        // Wrap request so we can read the body safely
         ContentCachingRequestWrapper cached = new ContentCachingRequestWrapper(request);
         String body = StreamUtils.copyToString(cached.getInputStream(), StandardCharsets.UTF_8);
 
-        // Build target URL
-        String targetUrl = backendBase + forwardPath + (request.getQueryString() == null ? "" : "?" + request.getQueryString());
+        // Construct full target URL
+        String targetUrl = backendBase + forwardPath +
+                (request.getQueryString() == null ? "" : "?" + request.getQueryString());
+
+        // Attach metadata for later filters (like circuit breaker or logging)
+        request.setAttribute("SERVICE_NAME", serviceName);
+        request.setAttribute("TARGET_BACKEND_URL", backendBase);
 
         // Build headers for forwarding
         HttpHeaders headers = new HttpHeaders();
-        // copy headers except Host / Content-Length (let RestTemplate manage)
         Enumeration<String> headerNames = request.getHeaderNames();
         if (headerNames != null) {
             while (headerNames.hasMoreElements()) {
@@ -94,18 +94,17 @@ public class LoadBalancingFilter extends OncePerRequestFilter {
                 }
             }
         }
-        // Ensure content-type if body present
+
         if (body != null && !body.isBlank()) {
             String ct = request.getContentType();
-            if (ct != null) headers.set(HttpHeaders.CONTENT_TYPE, ct);
-            else headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setContentType(ct != null ? MediaType.valueOf(ct) : MediaType.APPLICATION_JSON);
         }
 
         HttpMethod method;
         try {
             method = HttpMethod.valueOf(request.getMethod());
         } catch (IllegalArgumentException ex) {
-            method = HttpMethod.POST; // fallback if unknown
+            method = HttpMethod.POST;
         }
 
         HttpEntity<String> forwardEntity = new HttpEntity<>(body, headers);
@@ -120,23 +119,21 @@ public class LoadBalancingFilter extends OncePerRequestFilter {
             return;
         }
 
-        // copy status
+        // Copy status
         response.setStatus(backendResponse.getStatusCodeValue());
 
-        // copy headers from backend response (simplified)
+        // Copy headers
         HttpHeaders respHeaders = backendResponse.getHeaders();
         respHeaders.forEach((name, values) -> {
-            // avoid overriding certain headers managed by container
             if (name.equalsIgnoreCase(HttpHeaders.TRANSFER_ENCODING)) return;
             for (String val : values) {
                 response.addHeader(name, val);
             }
         });
 
-        // copy body
+        // Copy body
         byte[] respBody = backendResponse.getBody();
         if (respBody != null && respBody.length > 0) {
-            // set content-type if present in response headers
             String respCt = respHeaders.getFirst(HttpHeaders.CONTENT_TYPE);
             if (respCt != null) response.setContentType(respCt);
             response.getOutputStream().write(respBody);

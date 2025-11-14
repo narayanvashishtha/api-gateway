@@ -1,0 +1,56 @@
+package com.example.api_gateway.circuitbreaker;
+
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+public class CircuitBreakerService {
+
+    private final CircuitBreakerConfig circuitBreakerConfig;
+    Map<String, CircuitBreakerState> serviceState = new ConcurrentHashMap<>();
+
+    public CircuitBreakerService(CircuitBreakerConfig circuitBreakerConfig){
+        this.circuitBreakerConfig = circuitBreakerConfig;
+    }
+
+    public CircuitBreakerState getState(String serviceName){
+        return serviceState.computeIfAbsent(serviceName, k -> new CircuitBreakerState());
+    }
+
+    private String key(String serviceName, String backendUrl) {
+        return serviceName + "@" + backendUrl;
+    }
+
+    public boolean allowRequest(String serviceName, String backendUrl) {
+        String k = key(serviceName, backendUrl);
+        CircuitBreakerState state = serviceState.computeIfAbsent(k, s -> new CircuitBreakerState());
+
+        if (!state.isOpen()) return true;
+
+        //If open, check if cooldown expired → half-open (allow a test)
+        return state.canAttempt(circuitBreakerConfig.getOpenStateDurationMs());
+    }
+
+    public void recordFailure(String serviceName, String backendUrl){
+        String k = key(serviceName, backendUrl);
+        CircuitBreakerState state = serviceState.computeIfAbsent(k, s -> new CircuitBreakerState());
+
+        state.incrementFailure();
+
+        if(state.getFailureCount() >= circuitBreakerConfig.getFailureThreshold()){
+            state.open();
+        }
+    }
+    public void recordSuccess(String serviceName, String backendUrl) {
+        String k = key(serviceName, backendUrl);
+        CircuitBreakerState state = serviceState.computeIfAbsent(k, s -> new CircuitBreakerState());
+
+        if (!state.isOpen()) return;
+
+        state.incrementSuccess();
+
+        if (state.getSuccessCount() >= circuitBreakerConfig.getSuccessThreshold()) {
+            state.close();
+        }
+    }
+}
