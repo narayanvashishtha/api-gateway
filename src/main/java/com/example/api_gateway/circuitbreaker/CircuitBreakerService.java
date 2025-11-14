@@ -4,6 +4,7 @@ package com.example.api_gateway.circuitbreaker;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+
 public class CircuitBreakerService {
 
     private final CircuitBreakerConfig circuitBreakerConfig;
@@ -11,10 +12,6 @@ public class CircuitBreakerService {
 
     public CircuitBreakerService(CircuitBreakerConfig circuitBreakerConfig){
         this.circuitBreakerConfig = circuitBreakerConfig;
-    }
-
-    public CircuitBreakerState getState(String serviceName){
-        return serviceState.computeIfAbsent(serviceName, k -> new CircuitBreakerState());
     }
 
     private String key(String serviceName, String backendUrl) {
@@ -51,6 +48,7 @@ public class CircuitBreakerService {
 
         if (state.getSuccessCount() >= circuitBreakerConfig.getSuccessThreshold()) {
             state.close();
+            state.resetFailure();
         }
     }
 }
