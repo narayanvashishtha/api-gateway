@@ -27,12 +27,6 @@ public class JwtTokenProvider {
     @Value("${app.jwt.refreshTokenExpirationTime}")
     private long refreshTokenExpirationTime;
 
-    public JwtTokenProvider(String secretKey, long accessTokenExpirationTime, long refreshTokenExpirationTime) {
-        this.secretKey = secretKey;
-        this.accessTokenExpirationTime = accessTokenExpirationTime;
-        this.refreshTokenExpirationTime = refreshTokenExpirationTime;
-    }
-
 
     public String generateAccessToken(User user) {
         Map<String, Object> claims = new HashMap<>();
