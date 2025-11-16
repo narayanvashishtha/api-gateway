@@ -1,12 +1,14 @@
 package com.example.api_gateway.loadbalancer.strategy;
 
 import com.example.api_gateway.loadbalancer.model.ServiceInstance;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Component
 public class RoundRobinStrategy {
 
     private final Map<String, AtomicInteger> counters = new ConcurrentHashMap<>(); ;

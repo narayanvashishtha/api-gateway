@@ -8,7 +8,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component
-class InMemoryOrderQueueService implements OrderQueueService {
+public class InMemoryOrderQueueService implements OrderQueueService {
     private final BlockingQueue<JsonNode> queue = new LinkedBlockingQueue<>();
     private final AtomicLong idGen = new AtomicLong(1000);
 
