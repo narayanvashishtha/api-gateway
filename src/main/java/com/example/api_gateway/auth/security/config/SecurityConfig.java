@@ -36,9 +36,9 @@ public class SecurityConfig {
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
-
+                .headers(h -> h.frameOptions(f -> f.disable()))  // ADD THIS for H2 console
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/register", "/login", "/refresh").permitAll()
+                        .requestMatchers("/register", "/login", "/refresh", "/h2-console/**", "/mock/**", "/market/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

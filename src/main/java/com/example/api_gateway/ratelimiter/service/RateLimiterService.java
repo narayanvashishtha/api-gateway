@@ -8,11 +8,11 @@ import java.time.Duration;
 @Component
 public class RateLimiterService {
 
-    private final RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
     private static final int TIME_WINDOW_SECONDS = 60;
     private static final int MAX_REQUESTS = 10;
 
-    public RateLimiterService(RedisTemplate<String, String> redisTemplate) {
+    public RateLimiterService(RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 

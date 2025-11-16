@@ -71,6 +71,6 @@ public class JwtTokenProvider {
         if(authHeader != null && authHeader.startsWith("Bearer ")){
             return authHeader.substring(7);
         }
-        else throw new InvalidOneTimeTokenException("Try logging in again");
+        return null;
     }
 }

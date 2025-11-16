@@ -39,8 +39,7 @@ public class BusinessRateLimiterFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
 
         // 1) only handle order endpoint
-        if (!request.getMethod().equalsIgnoreCase("POST") || !request.getRequestURI().startsWith("/api/orders")) {
-            filterChain.doFilter(request, response);
+        if (!request.getMethod().equalsIgnoreCase("POST") || !request.getRequestURI().startsWith("/order/place")) {            filterChain.doFilter(request, response);
             return;
         }
 
